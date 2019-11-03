@@ -112,7 +112,7 @@ static uint32_t m_buffer_tx[I2S_DATA_BLOCK_WORDS];
 static uint32_t m_buffer_rx[I2S_DATA_BLOCK_WORDS];
 static volatile int nled = 1;
 
-volatile uint8_t g_demo_mode = 1;
+volatile uint8_t g_demo_mode = 0;
 volatile bool g_i2s_start = true;
 volatile bool g_i2s_running = false;
 
@@ -138,78 +138,60 @@ volatile bool g_i2s_running = false;
 // }
 
 
-uint32_t caclChannelValue(uint8_t level)
-{
-    uint32_t val = 0;
+static inline uint32_t calcOutputColor(uint8_t level) {
+  // 0x8 - 0
+  // 0xE - 1
+  // 4-bits per led bit
 
-    // 0 
-    if(level == 0) {
-        val = 0x88888888;
-    }
-    // 255
-    else if (level == 255) {
-        val = 0xeeeeeeee;
-    }
-    else {
-        // apply 4-bit 0xe HIGH pattern wherever level bits are 1.
-        val = 0x88888888;
-        for (uint8_t i = 0; i < 8; i++) {
-            if((1 << i) & level) {
-                uint32_t mask = ~(0x0f << 4*i);
-                uint32_t patt = (0x0e << 4*i);
-                val = (val & mask) | patt;
-            }
-        }
+  if (level == 0) {
+    return 0x88888888;
+  }
+  if (level == 255) {
+    return 0xEEEEEEEE;
+  }
 
-        // swap 16 bits
-        val = (val >> 16) | (val << 16);
+  uint32_t val = 0;
+  for (int i = 0; i < 8; i++) {
+    if (level & (1 << i)) {
+      val |= 0xE << (i << 2);
+    } else {
+      val |= 0x8 << (i << 2);
     }
+  }
 
-    return val;
+  return val;
 }
 
-void set_led_data()
-{
-    for(int i = 0; i < 3*NLEDS; i += 3) {
-        if (i == 3*nled) {
-            switch(g_demo_mode) 
-            {
-                case 0:
-                {
-                    m_buffer_tx[i] = 0x88888888;
-                    m_buffer_tx[i+1] = caclChannelValue(128);
-                    m_buffer_tx[i+2] = 0x88888888;
-                }
-                break;
-                case 1:
-                {
-                    m_buffer_tx[i] = caclChannelValue(128);;
-                    m_buffer_tx[i+1] = 0x0000FFFF;
-                    m_buffer_tx[i+2] = 0xFFFF0000;
-                }
-                break;
-                case 2:
-                {
-                    m_buffer_tx[i] = 0x88888888;
-                    m_buffer_tx[i+1] = 0x88888888;
-                    m_buffer_tx[i+2] = caclChannelValue(128);
-                }
-                break;
-                default:
-                break;
-            }
-        }
-        else {
-            m_buffer_tx[i] = 0x88888888;
-            m_buffer_tx[i+1] = 0x88888888;
-            m_buffer_tx[i+2] = 0x88888888;
-        }
-    }
+static inline void rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer) {
+  buffer[0] = calcOutputColor(g);
+  buffer[1] = calcOutputColor(r);
+  buffer[2] = calcOutputColor(b);
+}
 
-    // reset 
-    for(int i = 3*NLEDS; i < I2S_DATA_BLOCK_WORDS; i++) {
-        m_buffer_tx[i] = 0;
+void set_led_data() {
+  for (int i = 0; i < 3 * NLEDS; i += 3) {
+    if (i == (3 * nled)) {
+      switch (g_demo_mode) {
+        case 0:
+          rgb(0xAA, 0, 0, &m_buffer_tx[i]);
+          break;
+        case 1:
+          rgb(0, 0xAA, 0, &m_buffer_tx[i]);
+          break;
+        case 2:
+          rgb(0, 0, 0xAA, &m_buffer_tx[i]);
+          break;
+      }
     }
+    else {
+      rgb(1, 1, 1, &m_buffer_tx[i]);
+    }
+  }
+
+  // reset
+  for (int i = 3 * NLEDS; i < I2S_DATA_BLOCK_WORDS; i++) {
+    m_buffer_tx[i] = 0;
+  }
 }
 
 static void data_handler(nrf_drv_i2s_buffers_t const * p_released,
@@ -354,7 +336,7 @@ int main(void)
             g_i2s_running = false;
         }
 
-        nrf_delay_ms(20);
+        nrf_delay_ms(50);
 
         // update 
         if (g_i2s_running) {

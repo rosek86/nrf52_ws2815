@@ -272,7 +272,7 @@ int main(void)
     // 15873 Hz (the closest one to 16 kHz that is possible to achieve).
     config.sdin_pin  = I2S_SDIN_PIN;
     config.sdout_pin = i2s_sdout_pin;
-    config.mck_setup = NRF_I2S_MCK_32MDIV8; ///< 32 MHz / 10 = 3.2 MHz.
+    config.mck_setup = NRF_I2S_MCK_32MDIV8;  ///< 32 MHz / 8 = 4.0 MHz.
     config.ratio     = NRF_I2S_RATIO_32X;    ///< LRCK = MCK / 32.
     config.channels  = NRF_I2S_CHANNELS_STEREO;
     err_code = nrf_drv_i2s_init(&config, data_handler);

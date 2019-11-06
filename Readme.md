@@ -18,6 +18,12 @@ cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain.cmake -DCMAKE_BUILD_TYPE
 ninja
 ```
 
+## Flash with nrfjprog
+
+```bash
+ninja flash_jlink
+```
+
 ## Flash via JLinkExe
 
 ```bash

@@ -9,18 +9,25 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+// TODO: separate module for low level display functions
+
 #define NLEDS 300
-#define RESET_BITS 100
+#define RESET_BYTES 100 // RESET_BYTES * (32bits or 8bits (ws2815))
+                        // 100 * 8 * 1us (100 * 8 bit * 1 us / bit) = 800 us
+                        // so reset time is 800 us > 280 us (min. specified)
 
-#define I2S_DATA_BLOCK_WORDS (3 * NLEDS + RESET_BITS)
+#define I2S_DATA_BLOCK_WORDS (3 * NLEDS + RESET_BYTES)
+// total time is (900+100) * 8 * 1us = 8 ms
+// or 125 Hz refresh rate
 
-// static uint32_t       * volatile mp_block_to_fill  = NULL;
-// static uint32_t const * volatile mp_block_to_check = NULL;
+static uint32_t m_buffer_tx[2][I2S_DATA_BLOCK_WORDS];
 
-static uint32_t m_buffer_tx[I2S_DATA_BLOCK_WORDS];
+static uint32_t * volatile m_block_to_send = NULL;
+static uint32_t * volatile m_block_to_fill_next = NULL;
+static uint32_t * volatile m_block_to_send_next = NULL;
+
 static volatile int nled = 1;
 
-static volatile uint8_t g_demo_mode = 0;
 static volatile bool g_i2s_start = true;
 static volatile bool g_i2s_running = false;
 
@@ -54,76 +61,43 @@ static inline void rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer) {
   buffer[2] = calcOutputColor(b);
 }
 
-void set_led_data(void) {
+void set_led_data(uint32_t *to_fill) {
   for (int i = 0; i < 3 * NLEDS; i += 3) {
     if (i == (3 * nled)) {
-      switch (g_demo_mode) {
-        case 0:
-          rgb(0xAA, 0, 0, &m_buffer_tx[i]);
-          break;
-        case 1:
-          rgb(0, 0xAA, 0, &m_buffer_tx[i]);
-          break;
-        case 2:
-          rgb(0, 0, 0xAA, &m_buffer_tx[i]);
-          break;
-      }
+      rgb(0xAA, 0, 0, &to_fill[i]);
+    } else {
+      rgb(1, 1, 1, &to_fill[i]);
     }
-    else {
-      rgb(1, 1, 1, &m_buffer_tx[i]);
-    }
-  }
-
-  // reset
-  for (int i = 3 * NLEDS; i < I2S_DATA_BLOCK_WORDS; i++) {
-    m_buffer_tx[i] = 0;
   }
 }
 
 static void data_handler(nrf_drv_i2s_buffers_t const * p_released,
-                         uint32_t                      status)
-{
-  // // 'nrf_drv_i2s_next_buffers_set' is called directly from the handler
-  // // each time next buffers are requested, so data corruption is not
-  // // expected.
-  // ASSERT(p_released);
+                         uint32_t                      status) {
+  ASSERT(p_released);
 
-  // // When the handler is called after the transfer has been stopped
-  // // (no next buffers are needed, only the used buffers are to be
-  // // released), there is nothing to do.
-  // if (!(status & NRFX_I2S_STATUS_NEXT_BUFFERS_NEEDED))
-  // {
-  //   return;
-  // }
+  // When the handler is called after the transfer has been stopped
+  // (no next buffers are needed, only the used buffers are to be
+  // released), there is nothing to do.
+  if (!(status & NRFX_I2S_STATUS_NEXT_BUFFERS_NEEDED)) {
+    return;
+  }
 
-  // // First call of this handler occurs right after the transfer is started.
-  // // No data has been transferred yet at this point, so there is nothing to
-  // // check. Only the buffers for the next part of the transfer should be
-  // // provided.
-  // if (!p_released->p_rx_buffer)
-  // {
-  //     nrf_drv_i2s_buffers_t const next_buffers = {
-  //         .p_rx_buffer = m_buffer_rx[1],
-  //         .p_tx_buffer = m_buffer_tx[1],
-  //     };
-  //     APP_ERROR_CHECK(nrf_drv_i2s_next_buffers_set(&next_buffers));
+  if (m_block_to_send_next) {
+    m_block_to_send = m_block_to_send_next;
+    m_block_to_send_next = NULL;
+  }
 
-  //     mp_block_to_fill = m_buffer_tx[1];
-  // }
-  // else
-  // {
-  //     mp_block_to_check = p_released->p_rx_buffer;
-  //     // The driver has just finished accessing the buffers pointed by
-  //     // 'p_released'. They can be used for the next part of the transfer
-  //     // that will be scheduled now.
-  //     APP_ERROR_CHECK(nrf_drv_i2s_next_buffers_set(p_released));
+  uint32_t err_code = nrf_drv_i2s_next_buffers_set(&(nrf_drv_i2s_buffers_t) {
+    .p_tx_buffer = m_block_to_send,
+    .p_rx_buffer = NULL,
+  });
+  APP_ERROR_CHECK(err_code);
 
-  //     // The pointer needs to be typecasted here, so that it is possible to
-  //     // modify the content it is pointing to (it is marked in the structure
-  //     // as pointing to constant data because the driver is not supposed to
-  //     // modify the provided data).
-  //     mp_block_to_fill = (uint32_t *)p_released->p_tx_buffer;
-  // }
+  if (m_block_to_send == m_buffer_tx[0]) {
+    m_block_to_fill_next = m_buffer_tx[1];
+  } else {
+    m_block_to_fill_next = m_buffer_tx[0];
+  }
 }
 
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) {
@@ -169,56 +143,24 @@ int main(void) {
   NRF_LOG_INFO("WS2815 application started.");
 
   for (;;) {
-    // m_blocks_transferred = 0;
-    // mp_block_to_fill  = NULL;
-    // mp_block_to_check = NULL;
-
-    // prepare_tx_data(m_buffer_tx);
-
-    // nrf_drv_i2s_buffers_t const initial_buffers = {
-    //   .p_tx_buffer = m_buffer_tx,
-    //   .p_rx_buffer = m_buffer_rx,
-    // };
-    // err_code = nrf_drv_i2s_start(&initial_buffers, I2S_DATA_BLOCK_WORDS, 0);
-    // APP_ERROR_CHECK(err_code);
-
-    // do {
-    //   // Wait for an event.
-    //   __WFE();
-    //   // Clear the event register.
-    //   __SEV();
-    //   __WFE();
-
-    //   if (mp_block_to_fill) {
-    //     prepare_tx_data(mp_block_to_fill);
-    //     mp_block_to_fill = NULL;
-    //   }
-    //   if (mp_block_to_check) {
-    //     check_rx_data(mp_block_to_check);
-    //     mp_block_to_check = NULL;
-    //   }
-    // } while (m_blocks_transferred < BLOCKS_TO_TRANSFER);
-
-    // nrf_drv_i2s_stop();
-
     NRF_LOG_FLUSH();
 
-    // bsp_board_leds_off();
-    // nrf_delay_ms(PAUSE_TIME);
     // start I2S
     if (g_i2s_start && !g_i2s_running) {
-      nrf_drv_i2s_buffers_t const initial_buffers = {
-        .p_tx_buffer = m_buffer_tx,
+      m_block_to_send = m_buffer_tx[0];
+      err_code = nrf_drv_i2s_start(&(nrf_drv_i2s_buffers_t) {
+        .p_tx_buffer = m_block_to_send,
         .p_rx_buffer = NULL,
-      };
-      err_code = nrf_drv_i2s_start(&initial_buffers, I2S_DATA_BLOCK_WORDS, 0);
+      }, I2S_DATA_BLOCK_WORDS, 0);
       APP_ERROR_CHECK(err_code);
+
       g_i2s_running = true;
     }
 
     // stop I2S
     if (!g_i2s_start && g_i2s_running) {
       nrf_drv_i2s_stop();
+
       g_i2s_running = false;
     }
 
@@ -226,8 +168,17 @@ int main(void) {
 
     // update
     if (g_i2s_running) {
+      while (m_block_to_fill_next == NULL) {
+      }
+      uint32_t *fill = m_block_to_fill_next;
+
       nled = (nled + 1) % NLEDS;
-      set_led_data();
+      set_led_data(fill);
+
+      // NOTE: this can be in critical section
+      m_block_to_fill_next = NULL;
+      m_block_to_send_next = fill;
+      // --
     }
   }
 }

@@ -9,139 +9,25 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-#define LED_OK      BSP_BOARD_LED_0
-#define LED_ERROR   BSP_BOARD_LED_1
+#define NLEDS 300
+#define RESET_BITS 100
 
-// static uint32_t m_buffer_rx[I2S_DATA_BLOCK_WORDS];
-// static uint32_t m_buffer_tx[I2S_DATA_BLOCK_WORDS];
-
-// Delay time between consecutive I2S transfers performed in the main loop
-// (in milliseconds).
-// #define PAUSE_TIME          500
-// Number of blocks of data to be contained in each transfer.
-// #define BLOCKS_TO_TRANSFER  20
-
-// static uint8_t volatile m_blocks_transferred     = 0;
-// static uint8_t          m_zero_samples_to_ignore = 0;
-// static uint16_t         m_sample_value_to_send;
-// static uint16_t         m_sample_value_expected;
-// static bool             m_error_encountered;
+#define I2S_DATA_BLOCK_WORDS (3 * NLEDS + RESET_BITS)
 
 // static uint32_t       * volatile mp_block_to_fill  = NULL;
 // static uint32_t const * volatile mp_block_to_check = NULL;
 
-
-// static void prepare_tx_data(uint32_t * p_block)
-// {
-//     // These variables will be both zero only at the very beginning of each
-//     // transfer, so we use them as the indication that the re-initialization
-//     // should be performed.
-//     if (m_blocks_transferred == 0 && m_zero_samples_to_ignore == 0)
-//     {
-//         // Number of initial samples (actually pairs of L/R samples) with zero
-//         // values that should be ignored - see the comment in 'check_samples'.
-//         m_zero_samples_to_ignore = 2;
-//         m_sample_value_to_send   = 0xCAFE;
-//         m_sample_value_expected  = 0xCAFE;
-//         m_error_encountered      = false;
-//     }
-
-//     // [each data word contains two 16-bit samples]
-//     uint16_t i;
-//     for (i = 0; i < I2S_DATA_BLOCK_WORDS; ++i)
-//     {
-//         uint16_t sample_l = m_sample_value_to_send - 1;
-//         uint16_t sample_r = m_sample_value_to_send + 1;
-//         ++m_sample_value_to_send;
-
-//         uint32_t * p_word = &p_block[i];
-//         ((uint16_t *)p_word)[0] = sample_l;
-//         ((uint16_t *)p_word)[1] = sample_r;
-//     }
-// }
-
-
-// static bool check_samples(uint32_t const * p_block)
-// {
-//     // [each data word contains two 16-bit samples]
-//     uint16_t i;
-//     for (i = 0; i < I2S_DATA_BLOCK_WORDS; ++i)
-//     {
-//         uint32_t const * p_word = &p_block[i];
-//         uint16_t actual_sample_l = ((uint16_t const *)p_word)[0];
-//         uint16_t actual_sample_r = ((uint16_t const *)p_word)[1];
-
-//         // Normally a couple of initial samples sent by the I2S peripheral
-//         // will have zero values, because it starts to output the clock
-//         // before the actual data is fetched by EasyDMA. As we are dealing
-//         // with streaming the initial zero samples can be simply ignored.
-//         if (m_zero_samples_to_ignore > 0 &&
-//             actual_sample_l == 0 &&
-//             actual_sample_r == 0)
-//         {
-//             --m_zero_samples_to_ignore;
-//         }
-//         else
-//         {
-//             m_zero_samples_to_ignore = 0;
-
-//             uint16_t expected_sample_l = m_sample_value_expected - 1;
-//             uint16_t expected_sample_r = m_sample_value_expected + 1;
-//             ++m_sample_value_expected;
-
-//             if (actual_sample_l != expected_sample_l ||
-//                 actual_sample_r != expected_sample_r)
-//             {
-//                 NRF_LOG_INFO("%3u: %04x/%04x, expected: %04x/%04x (i: %u)",
-//                     m_blocks_transferred, actual_sample_l, actual_sample_r,
-//                     expected_sample_l, expected_sample_r, i);
-//                 return false;
-//             }
-//         }
-//     }
-//     NRF_LOG_INFO("%3u: OK", m_blocks_transferred);
-//     return true;
-// }
-
-#define I2S_DATA_BLOCK_WORDS    1024
-
-#define NLEDS 300
-#define RESET_BITS I2S_DATA_BLOCK_WORDS - (3*NLEDS)
-
 static uint32_t m_buffer_tx[I2S_DATA_BLOCK_WORDS];
-static uint32_t m_buffer_rx[I2S_DATA_BLOCK_WORDS];
 static volatile int nled = 1;
 
-volatile uint8_t g_demo_mode = 0;
-volatile bool g_i2s_start = true;
-volatile bool g_i2s_running = false;
-
-// static void check_rx_data(uint32_t const * p_block)
-// {
-//     ++m_blocks_transferred;
-
-//     if (!m_error_encountered)
-//     {
-//         m_error_encountered = !check_samples(p_block);
-//     }
-
-//     if (m_error_encountered)
-//     {
-//         bsp_board_led_off(LED_OK);
-//         bsp_board_led_invert(LED_ERROR);
-//     }
-//     else
-//     {
-//         bsp_board_led_off(LED_ERROR);
-//         bsp_board_led_invert(LED_OK);
-//     }
-// }
-
+static volatile uint8_t g_demo_mode = 0;
+static volatile bool g_i2s_start = true;
+static volatile bool g_i2s_running = false;
 
 static inline uint32_t calcOutputColor(uint8_t level) {
   // 0x8 - 0
   // 0xE - 1
-  // 4-bits per led bit
+  // 4-bits (i2s) per 1-bit (ws2815)
 
   if (level == 0) {
     return 0x88888888;
@@ -168,7 +54,7 @@ static inline void rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer) {
   buffer[2] = calcOutputColor(b);
 }
 
-void set_led_data() {
+void set_led_data(void) {
   for (int i = 0; i < 3 * NLEDS; i += 3) {
     if (i == (3 * nled)) {
       switch (g_demo_mode) {
@@ -247,7 +133,6 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
     app_error_save_and_stop(id, pc, info);
 }
 
-
 int main(void)
 {
     uint32_t err_code = NRF_SUCCESS;
@@ -261,23 +146,30 @@ int main(void)
 
     NRF_LOG_INFO("I2S loopback example started.");
 
-    int i2s_sdout_pin = NRF_GPIO_PIN_MAP(1, 10);
-    nrf_gpio_cfg_output(i2s_sdout_pin);
+    // I2S configuration
+    // MCLK = 32 MHz / 8 = 4 MHz
+    // LRCK = MCLK / 32 = 4 MHz / 32
+    // SCLK = STEREO * WIDTH * LRCK = 2 * 16 * 4 MHz / 32 = 4 MHz
+    // 4-bits (i2s) per 1-bit (ws2815)
+    // 4 MHz / 4-bits = 1 MHz, so 1 us per 1-bit (ws2815)
 
-    nrf_drv_i2s_config_t config = NRF_DRV_I2S_DEFAULT_CONFIG;
-    // In Master mode the MCK frequency and the MCK/LRCK ratio should be
-    // set properly in order to achieve desired audio sample rate (which
-    // is equivalent to the LRCK frequency).
-    // For the following settings we'll get the LRCK frequency equal to
-    // 15873 Hz (the closest one to 16 kHz that is possible to achieve).
-    config.sdin_pin  = I2S_SDIN_PIN;
-    config.sdout_pin = i2s_sdout_pin;
-    config.mck_setup = NRF_I2S_MCK_32MDIV8;  ///< 32 MHz / 8 = 4.0 MHz.
-    config.ratio     = NRF_I2S_RATIO_32X;    ///< LRCK = MCK / 32.
-    config.channels  = NRF_I2S_CHANNELS_STEREO;
+    nrf_drv_i2s_config_t config = {
+        .sck_pin      = NRF_GPIO_PIN_MAP(1, 11),
+        .lrck_pin     = NRF_GPIO_PIN_MAP(0, 3),
+        .mck_pin      = NRFX_I2S_PIN_NOT_USED,
+        .sdout_pin    = NRF_GPIO_PIN_MAP(1, 10),
+        .sdin_pin     = NRFX_I2S_PIN_NOT_USED,
+        .irq_priority = NRFX_I2S_CONFIG_IRQ_PRIORITY,
+        .mode         = NRF_I2S_MODE_MASTER,
+        .format       = NRF_I2S_FORMAT_I2S,
+        .alignment    = NRF_I2S_ALIGN_LEFT,
+        .sample_width = NRF_I2S_SWIDTH_16BIT,
+        .channels     = NRF_I2S_CHANNELS_STEREO,
+        .mck_setup    = NRF_I2S_MCK_32MDIV8,
+        .ratio        = NRF_I2S_RATIO_32X,
+    };
     err_code = nrf_drv_i2s_init(&config, data_handler);
     APP_ERROR_CHECK(err_code);
-
 
     for (;;)
     {
@@ -315,15 +207,15 @@ int main(void)
 
         // nrf_drv_i2s_stop();
 
-        // NRF_LOG_FLUSH();
+        NRF_LOG_FLUSH();
 
         // bsp_board_leds_off();
         // nrf_delay_ms(PAUSE_TIME);
         // start I2S
-        if(g_i2s_start && !g_i2s_running) {
+        if (g_i2s_start && !g_i2s_running) {
             nrf_drv_i2s_buffers_t const initial_buffers = {
                 .p_tx_buffer = m_buffer_tx,
-                .p_rx_buffer = m_buffer_rx,
+                .p_rx_buffer = NULL,
             };
             err_code = nrf_drv_i2s_start(&initial_buffers, I2S_DATA_BLOCK_WORDS, 0);
             APP_ERROR_CHECK(err_code);
@@ -331,14 +223,14 @@ int main(void)
         }
 
         // stop I2S
-        if(!g_i2s_start && g_i2s_running) {
+        if (!g_i2s_start && g_i2s_running) {
             nrf_drv_i2s_stop();
             g_i2s_running = false;
         }
 
         nrf_delay_ms(50);
 
-        // update 
+        // update
         if (g_i2s_running) {
             nled = (nled + 1) % NLEDS;
             set_led_data();

@@ -46,6 +46,7 @@ add_executable(${APP_NAME}
   ${SDK_ROOT}/external/segger_rtt/SEGGER_RTT.c
   ${SDK_ROOT}/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c
   ${SDK_ROOT}/external/segger_rtt/SEGGER_RTT_printf.c
+  ${SRC_DIR}/drv_ws2815.c
   ${SRC_DIR}/main.c
  )
 

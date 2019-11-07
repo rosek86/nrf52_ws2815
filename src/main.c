@@ -12,12 +12,12 @@
 
 // TODO: non-blocking loop
 
-static volatile int nled = 1;
+static volatile int m_nled = 1;
 
-static volatile bool g_i2s_start = true;
-static volatile bool g_i2s_running = false;
+static volatile bool m_i2s_start = true;
+static volatile bool m_i2s_running = false;
 
-static void set_led_data(uint32_t *to_fill);
+static void set_led_data(void);
 
 int main(void) {
   uint32_t err_code = NRF_SUCCESS;
@@ -42,41 +42,37 @@ int main(void) {
     NRF_LOG_FLUSH();
 
     // start I2S
-    if (g_i2s_start && !g_i2s_running) {
+    if (m_i2s_start && !m_i2s_running) {
       APP_ERROR_CHECK(drv_ws2815_start());
-      g_i2s_running = true;
+      m_i2s_running = true;
     }
 
     // stop I2S
-    if (!g_i2s_start && g_i2s_running) {
+    if (!m_i2s_start && m_i2s_running) {
       APP_ERROR_CHECK(drv_ws2815_stop());
-      g_i2s_running = false;
+      m_i2s_running = false;
     }
 
     nrf_delay_ms(50);
 
     // update
-    if (g_i2s_running) {
+    if (m_i2s_running) {
       while (drv_ws2815_framebuffer_is_ready() != DRV_WS2815_RC_SUCCESS) {
       }
 
-      uint32_t *fill;
-      drv_ws2815_framebuffer_get(&fill);
-
-      nled = (nled + 1) % DRV_WS2815_LEDS_COUNT;
-      set_led_data(fill);
-
+      set_led_data();
       drv_ws2815_commit();
     }
   }
 }
 
-static void set_led_data(uint32_t *to_fill) {
-  for (int i = 0; i < 3 * DRV_WS2815_LEDS_COUNT; i += 3) {
-    if (i == (3 * nled)) {
-      drv_ws2815_from_rgb(0xAA, 0, 0, &to_fill[i]);
+static void set_led_data(void) {
+  m_nled = (m_nled + 1) % DRV_WS2815_LEDS_COUNT;
+  for (int led = 0; led < DRV_WS2815_LEDS_COUNT; led++) {
+    if (led == m_nled) {
+      drv_ws2815_framebuffer_set_led(led, 0xAA, 0x00, 0x00);
     } else {
-      drv_ws2815_from_rgb(1, 1, 1, &to_fill[i]);
+      drv_ws2815_framebuffer_set_led(led, 0x01, 0x01, 0x01);
     }
   }
 }

@@ -36,7 +36,7 @@ uint32_t drv_ws2815_start(void);
 uint32_t drv_ws2815_stop(void);
 
 uint32_t drv_ws2815_framebuffer_is_ready(void);
-uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint32_t rgb);
+uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint8_t r, uint8_t g, uint8_t b);
 uint32_t drv_ws2815_framebuffer_get(uint32_t **fb);
 
 uint32_t drv_ws2815_commit(void);
@@ -58,10 +58,10 @@ static inline uint32_t drv_ws2815_from_color(uint8_t color) {
   return DRV_WS2815_FROM_COLOR(color);
 }
 
-static inline void drv_ws2815_from_rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer) {
-  buffer[0] = drv_ws2815_from_color(g);
-  buffer[1] = drv_ws2815_from_color(r);
-  buffer[2] = drv_ws2815_from_color(b);
+static inline void drv_ws2815_from_rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer, uint32_t led) {
+  buffer[(led * 3) + 0] = drv_ws2815_from_color(g);
+  buffer[(led * 3) + 1] = drv_ws2815_from_color(r);
+  buffer[(led * 3) + 2] = drv_ws2815_from_color(b);
 }
 
 #endif // DRV_WS2815_H__

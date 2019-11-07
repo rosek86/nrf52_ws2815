@@ -95,8 +95,11 @@ uint32_t drv_ws2815_framebuffer_is_ready(void) {
 }
 
 
-uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint32_t rgb) {
-  // TODO
+uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint8_t r, uint8_t g, uint8_t b) {
+  if (m_block_to_fill_next == NULL) {
+    return DRV_WS2815_RC_FB_NOT_READY;
+  }
+  drv_ws2815_from_rgb(r, g, b, m_block_to_fill_next, led);
   return DRV_WS2815_RC_SUCCESS;
 }
 
@@ -106,10 +109,12 @@ uint32_t drv_ws2815_framebuffer_get(uint32_t **fb) {
 }
 
 uint32_t drv_ws2815_commit(void) {
-  // NOTE: this can be in critical section
   uint32_t *fill = m_block_to_fill_next;
+
+  NRFX_IRQ_DISABLE(I2S_IRQn);
   m_block_to_fill_next = NULL;
   m_block_to_send_next = fill;
-  // --
-  return 0;
+  NRFX_IRQ_ENABLE(I2S_IRQn);
+
+  return DRV_WS2815_RC_SUCCESS;
 }

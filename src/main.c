@@ -8,12 +8,13 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "nrf_drv_systick.h"
+
 #include "drv_ws2815.h"
 
-// TODO: non-blocking loop
+#define UPDATE_TIME_US (50*1000UL)
 
 static volatile int m_nled = 1;
-
 static volatile bool m_i2s_start = true;
 static volatile bool m_i2s_running = false;
 
@@ -23,6 +24,9 @@ int main(void) {
   uint32_t err_code = NRF_SUCCESS;
 
   bsp_board_init(BSP_INIT_LEDS);
+
+  /* Init systick driver */
+  nrf_drv_systick_init();
 
   err_code = NRF_LOG_INIT(NULL);
   APP_ERROR_CHECK(err_code);
@@ -37,6 +41,11 @@ int main(void) {
   APP_ERROR_CHECK(err_code);
 
   NRF_LOG_INFO("WS2815 application started.");
+
+  nrfx_systick_state_t systick;
+  nrfx_systick_get(&systick);
+
+  set_led_data();
 
   for (;;) {
     NRF_LOG_FLUSH();
@@ -53,15 +62,16 @@ int main(void) {
       m_i2s_running = false;
     }
 
-    nrf_delay_ms(50);
-
     // update
-    if (m_i2s_running) {
-      while (drv_ws2815_framebuffer_is_ready() != DRV_WS2815_RC_SUCCESS) {
+    if (m_i2s_running && nrfx_systick_test(&systick, UPDATE_TIME_US) == true) {
+      nrfx_systick_get(&systick);
+
+      drv_ws2815_framebuffer_commit();
+
+      while (drv_ws2815_framebuffer_is_busy() == true) {
       }
 
       set_led_data();
-      drv_ws2815_commit();
     }
   }
 }

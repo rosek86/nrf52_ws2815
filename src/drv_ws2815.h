@@ -21,7 +21,8 @@
 #define DRV_WS2815_RET_CODE_BASE 0x1234
 typedef enum {
   DRV_WS2815_RC_SUCCESS = 0,
-  DRV_WS2815_RC_FB_NOT_READY = DRV_WS2815_RET_CODE_BASE,
+  DRV_WS2815_RC_BUSY = DRV_WS2815_RET_CODE_BASE,
+  DRV_WS2815_RC_INVALID_STATE,
 } drv_ws2815_rc_t;
 
 typedef struct {
@@ -35,11 +36,11 @@ uint32_t drv_ws2815_init(drv_ws2815_conf_t *const conf);
 uint32_t drv_ws2815_start(void);
 uint32_t drv_ws2815_stop(void);
 
-uint32_t drv_ws2815_framebuffer_is_ready(void);
+bool drv_ws2815_framebuffer_is_busy(void);
+
 uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint8_t r, uint8_t g, uint8_t b);
 uint32_t drv_ws2815_framebuffer_get(uint32_t **fb);
-
-uint32_t drv_ws2815_commit(void);
+uint32_t drv_ws2815_framebuffer_commit(void);
 
 // color conversion
 #define _DRV_WS2815_I2S_BITS_PER_LED_BIT 4

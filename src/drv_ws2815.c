@@ -5,11 +5,11 @@
 
 #define I2S_DATA_BLOCK_WORDS (3 * DRV_WS2815_LEDS_COUNT + DRV_WS2815_RESET_BYTES)
 
-static uint32_t m_buffer_tx[2][I2S_DATA_BLOCK_WORDS];
+static bool _started = false;
 
-static uint32_t * volatile m_block_to_send = NULL;
-static uint32_t * volatile m_block_to_fill_next = NULL;
-static uint32_t * volatile m_block_to_send_next = NULL;
+static uint32_t _buffer_tx[2][I2S_DATA_BLOCK_WORDS];
+static uint32_t * volatile _block_to_send = NULL;
+static uint32_t * volatile _block_to_fill = NULL;
 
 static void data_handler(nrf_drv_i2s_buffers_t const * p_released, uint32_t status);
 
@@ -20,7 +20,9 @@ static void data_handler(nrf_drv_i2s_buffers_t const * p_released, uint32_t stat
 // 4-bits (i2s) per 1-bit (ws2815)
 // 4 MHz / 4-bits = 1 MHz, so 1 us per 1-bit (ws2815)
 uint32_t drv_ws2815_init(drv_ws2815_conf_t *const conf) {
-  uint32_t err_code;
+  _started = false;
+  _block_to_send = NULL;
+  _block_to_fill = NULL;
 
   nrf_drv_i2s_config_t i2s_conf = {
     .sck_pin      = conf->sck_pin,
@@ -38,6 +40,7 @@ uint32_t drv_ws2815_init(drv_ws2815_conf_t *const conf) {
     .ratio        = NRF_I2S_RATIO_32X,
   };
 
+  uint32_t err_code;
   if ((err_code = nrf_drv_i2s_init(&i2s_conf, data_handler)) != 0) {
     return err_code;
   }
@@ -47,6 +50,7 @@ uint32_t drv_ws2815_init(drv_ws2815_conf_t *const conf) {
 
 static void data_handler(nrf_drv_i2s_buffers_t const * p_released,
                          uint32_t                      status) {
+  static bool swapping_buffers = false;
   ASSERT(p_released);
 
   // When the handler is called after the transfer has been stopped
@@ -56,28 +60,45 @@ static void data_handler(nrf_drv_i2s_buffers_t const * p_released,
     return;
   }
 
-  if (m_block_to_send_next) {
-    m_block_to_send = m_block_to_send_next;
-    m_block_to_send_next = NULL;
+  if (swapping_buffers == true) {
+    swapping_buffers = false;
+    if (_block_to_send == _buffer_tx[0]) {
+      _block_to_fill = _buffer_tx[1];
+    } else {
+      _block_to_fill = _buffer_tx[0];
+    }
+  }
+
+  if (_block_to_fill == NULL) {
+    if (p_released->p_tx_buffer == _buffer_tx[0]) {
+      _block_to_send = _buffer_tx[1];
+    } else {
+      _block_to_send = _buffer_tx[0];
+    }
+    swapping_buffers = true;
   }
 
   uint32_t err_code = nrf_drv_i2s_next_buffers_set(&(nrf_drv_i2s_buffers_t) {
-    .p_tx_buffer = m_block_to_send,
+    .p_tx_buffer = _block_to_send,
     .p_rx_buffer = NULL,
   });
   APP_ERROR_CHECK(err_code);
-
-  if (m_block_to_send == m_buffer_tx[0]) {
-    m_block_to_fill_next = m_buffer_tx[1];
-  } else {
-    m_block_to_fill_next = m_buffer_tx[0];
-  }
 }
 
 uint32_t drv_ws2815_start(void) {
-  m_block_to_send = m_buffer_tx[0];
+  if (_started == true) {
+    return DRV_WS2815_RC_INVALID_STATE;
+  }
+
+  for (int led = 0; led < DRV_WS2815_LEDS_COUNT; led++) {
+    drv_ws2815_from_rgb(0, 0, 0, _buffer_tx[0], led);
+    drv_ws2815_from_rgb(0, 0, 0, _buffer_tx[1], led);
+  }
+
+  _block_to_send = _buffer_tx[0];
+  _block_to_fill = _buffer_tx[1];
   return nrf_drv_i2s_start(&(nrf_drv_i2s_buffers_t) {
-    .p_tx_buffer = m_block_to_send,
+    .p_tx_buffer = _block_to_send,
     .p_rx_buffer = NULL,
   }, I2S_DATA_BLOCK_WORDS, 0);
 }
@@ -87,34 +108,31 @@ uint32_t drv_ws2815_stop(void) {
   return DRV_WS2815_RC_SUCCESS;
 }
 
-uint32_t drv_ws2815_framebuffer_is_ready(void) {
-  if (m_block_to_fill_next == NULL) {
-    return DRV_WS2815_RC_FB_NOT_READY;
-  }
-  return DRV_WS2815_RC_SUCCESS;
+bool drv_ws2815_framebuffer_is_busy(void) {
+  return _block_to_fill == NULL;
 }
 
-
 uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint8_t r, uint8_t g, uint8_t b) {
-  if (m_block_to_fill_next == NULL) {
-    return DRV_WS2815_RC_FB_NOT_READY;
+  if (drv_ws2815_framebuffer_is_busy()) {
+    return DRV_WS2815_RC_BUSY;
   }
-  drv_ws2815_from_rgb(r, g, b, m_block_to_fill_next, led);
+  drv_ws2815_from_rgb(r, g, b, _block_to_fill, led);
   return DRV_WS2815_RC_SUCCESS;
 }
 
 uint32_t drv_ws2815_framebuffer_get(uint32_t **fb) {
-  *fb = m_block_to_fill_next;
+  if (drv_ws2815_framebuffer_is_busy()) {
+    return DRV_WS2815_RC_BUSY;
+  }
+  *fb = _block_to_fill;
   return DRV_WS2815_RC_SUCCESS;
 }
 
-uint32_t drv_ws2815_commit(void) {
-  uint32_t *fill = m_block_to_fill_next;
+uint32_t drv_ws2815_framebuffer_commit(void) {
+  if (drv_ws2815_framebuffer_is_busy()) {
+    return DRV_WS2815_RC_BUSY;
+  }
 
-  NRFX_IRQ_DISABLE(I2S_IRQn);
-  m_block_to_fill_next = NULL;
-  m_block_to_send_next = fill;
-  NRFX_IRQ_ENABLE(I2S_IRQn);
-
+  _block_to_fill = NULL;
   return DRV_WS2815_RC_SUCCESS;
 }

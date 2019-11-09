@@ -14,7 +14,7 @@
 
 #define UPDATE_TIME_US (50*1000UL)
 
-static volatile int m_nled = 1;
+static volatile int m_nled = 0;
 static volatile bool m_i2s_start = true;
 static volatile bool m_i2s_running = false;
 
@@ -45,14 +45,14 @@ int main(void) {
   nrfx_systick_state_t systick;
   nrfx_systick_get(&systick);
 
-  set_led_data();
-
   for (;;) {
     NRF_LOG_FLUSH();
 
     // start I2S
     if (m_i2s_start && !m_i2s_running) {
       APP_ERROR_CHECK(drv_ws2815_start());
+      set_led_data();
+
       m_i2s_running = true;
     }
 
@@ -77,7 +77,6 @@ int main(void) {
 }
 
 static void set_led_data(void) {
-  m_nled = (m_nled + 1) % DRV_WS2815_LEDS_COUNT;
   for (int led = 0; led < DRV_WS2815_LEDS_COUNT; led++) {
     if (led == m_nled) {
       drv_ws2815_framebuffer_set_led(led, 0xAA, 0x00, 0x00);
@@ -85,6 +84,7 @@ static void set_led_data(void) {
       drv_ws2815_framebuffer_set_led(led, 0x01, 0x01, 0x01);
     }
   }
+  m_nled = (m_nled + 1) % DRV_WS2815_LEDS_COUNT;
 }
 
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) {

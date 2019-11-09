@@ -94,9 +94,9 @@ uint32_t drv_ws2815_start(void) {
     drv_ws2815_from_rgb(0, 0, 0, _buffer_tx[0], led);
     drv_ws2815_from_rgb(0, 0, 0, _buffer_tx[1], led);
   }
-
   _block_to_send = _buffer_tx[0];
   _block_to_fill = _buffer_tx[1];
+
   return nrf_drv_i2s_start(&(nrf_drv_i2s_buffers_t) {
     .p_tx_buffer = _block_to_send,
     .p_rx_buffer = NULL,

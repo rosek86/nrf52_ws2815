@@ -22,6 +22,7 @@ static void set_led_data(void);
 
 int main(void) {
   uint32_t err_code = NRF_SUCCESS;
+  bool update_framebuffer = false;
 
   bsp_board_init(BSP_INIT_LEDS);
 
@@ -62,15 +63,15 @@ int main(void) {
       m_i2s_running = false;
     }
 
-    // update
     if (m_i2s_running && nrfx_systick_test(&systick, UPDATE_TIME_US) == true) {
       nrfx_systick_get(&systick);
 
       drv_ws2815_framebuffer_commit();
+      update_framebuffer = true;
+    }
 
-      while (drv_ws2815_framebuffer_is_busy() == true) {
-      }
-
+    if (update_framebuffer == true && drv_ws2815_framebuffer_is_busy() == false) {
+      update_framebuffer = false;
       set_led_data();
     }
   }

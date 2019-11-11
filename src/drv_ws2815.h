@@ -5,8 +5,9 @@
 #include <stdbool.h>
 
 // leds configuration
-#define DRV_WS2815_LEDS_COUNT 300
-#define DRV_WS2815_RESET_BYTES 100
+#define DRV_WS2815_INVERTED     1   // transistor is inverting bits
+#define DRV_WS2815_LEDS_COUNT   300
+#define DRV_WS2815_RESET_BYTES  100
 // example for DRV_WS2815_RESET_BYTES = 100
 // we have 8us per ws2815 byte 
 // 100 byte * 8us / byte = 800 us
@@ -44,19 +45,27 @@ uint32_t drv_ws2815_framebuffer_commit(void);
 
 // color conversion
 #define _DRV_WS2815_I2S_BITS_PER_LED_BIT 4
-#define _DRV_WS2815_FROM_COLOR(x, bit) (                      \
+#define _DRV_WS2815_FROM_COLOR_BIT(x, bit) (                  \
     ((x) & (1 << (bit))) ?                                    \
       (0x0E << ((bit) * _DRV_WS2815_I2S_BITS_PER_LED_BIT)) :  \
       (0x08 << ((bit) * _DRV_WS2815_I2S_BITS_PER_LED_BIT))    \
   )
-#define DRV_WS2815_FROM_COLOR(x)  _DRV_WS2815_FROM_COLOR(x, 0) | _DRV_WS2815_FROM_COLOR(x, 1) | \
-                                  _DRV_WS2815_FROM_COLOR(x, 2) | _DRV_WS2815_FROM_COLOR(x, 3) | \
-                                  _DRV_WS2815_FROM_COLOR(x, 4) | _DRV_WS2815_FROM_COLOR(x, 5) | \
-                                  _DRV_WS2815_FROM_COLOR(x, 6) | _DRV_WS2815_FROM_COLOR(x, 7)
+#define _DRV_WS2815_FROM_COLOR(x) (_DRV_WS2815_FROM_COLOR_BIT(x, 0) | _DRV_WS2815_FROM_COLOR_BIT(x, 1) | \
+                                   _DRV_WS2815_FROM_COLOR_BIT(x, 2) | _DRV_WS2815_FROM_COLOR_BIT(x, 3) | \
+                                   _DRV_WS2815_FROM_COLOR_BIT(x, 4) | _DRV_WS2815_FROM_COLOR_BIT(x, 5) | \
+                                   _DRV_WS2815_FROM_COLOR_BIT(x, 6) | _DRV_WS2815_FROM_COLOR_BIT(x, 7))
 
+#if (DRV_WS2815_INVERTED == 0)
+#define DRV_WS2815_FROM_COLOR(x) (_DRV_WS2815_FROM_COLOR(x))
+#define DRV_WS2815_RESET_DWORD 0x00000000
+#else
+#define DRV_WS2815_FROM_COLOR(x) (~_DRV_WS2815_FROM_COLOR(x))
+#define DRV_WS2815_RESET_DWORD 0xFFFFFFFF
+#endif
 
 static inline uint32_t drv_ws2815_from_color(uint8_t color) {
-  return DRV_WS2815_FROM_COLOR(color);
+  uint32_t c = DRV_WS2815_FROM_COLOR(color);
+  return ((c & 0xFFFF0000) >> 16) | ((c & 0x0000FFFF) << 16);
 }
 
 static inline void drv_ws2815_from_rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer, uint32_t led) {

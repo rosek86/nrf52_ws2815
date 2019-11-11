@@ -94,6 +94,10 @@ uint32_t drv_ws2815_start(void) {
     drv_ws2815_from_rgb(0, 0, 0, _buffer_tx[0], led);
     drv_ws2815_from_rgb(0, 0, 0, _buffer_tx[1], led);
   }
+  for (int led = DRV_WS2815_LEDS_COUNT; led < I2S_DATA_BLOCK_WORDS; led++) {
+    _buffer_tx[0][led] = DRV_WS2815_RESET_DWORD;
+    _buffer_tx[1][led] = DRV_WS2815_RESET_DWORD;
+  }
   _block_to_send = _buffer_tx[0];
   _block_to_fill = _buffer_tx[1];
 

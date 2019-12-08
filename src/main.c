@@ -24,7 +24,7 @@ int main(void) {
   uint32_t err_code = NRF_SUCCESS;
   bool update_framebuffer = false;
 
-  bsp_board_init(BSP_INIT_LEDS);
+  bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
 
   /* Init systick driver */
   nrf_drv_systick_init();
@@ -34,10 +34,28 @@ int main(void) {
 
   NRF_LOG_DEFAULT_BACKENDS_INIT();
 
+  nrf_gpio_cfg_output(BSP_DBG1);
+  nrf_gpio_cfg_output(BSP_DBG2);
+  nrf_gpio_cfg_output(BSP_DBG3);
+
+  nrf_gpio_pin_set(LED1_G);
+  nrf_gpio_cfg_output(LED1_G);
+  nrf_gpio_pin_clear(LED1_G);
+
+  nrf_gpio_pin_set(LED2_R);
+  nrf_gpio_cfg_output(LED2_R);
+  nrf_gpio_pin_set(LED2_G);
+  nrf_gpio_cfg_output(LED2_G);
+  nrf_gpio_pin_set(LED2_B);
+  nrf_gpio_cfg_output(LED2_B);
+
+  nrf_gpio_pin_set(BSP_PMU_LED_EN);
+  nrf_gpio_cfg_output(BSP_PMU_LED_EN);
+
   err_code = drv_ws2815_init(&(drv_ws2815_conf_t) {
-    .sck_pin   = NRF_GPIO_PIN_MAP(1, 11),
-    .lrck_pin  = NRF_GPIO_PIN_MAP(0, 3),
-    .sdout_pin = NRF_GPIO_PIN_MAP(1, 10),
+    .sck_pin   = BSP_I2S_SCK,
+    .lrck_pin  = BSP_I2S_LRCK,
+    .sdout_pin = BSP_LED_DRV,
   });
   APP_ERROR_CHECK(err_code);
 

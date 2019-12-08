@@ -91,7 +91,7 @@ target_compile_options(${APP_NAME} PRIVATE
 )
 
 target_compile_definitions(${APP_NAME} PRIVATE
-  BOARD_PCA10056
+  CUSTOM_BOARD_INC=bsp_ws2815_driver
   BSP_DEFINES_ONLY
   CONFIG_GPIO_AS_PINRESET
   FLOAT_ABI_HARD

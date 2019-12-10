@@ -12,7 +12,9 @@
 
 #include "drv_ws2815.h"
 
-#define UPDATE_TIME_US (50*1000UL)
+#include "effects/effect_fade_out.h"
+
+#define UPDATE_TIME_US (100*1000UL)
 
 static volatile int m_nled = 0;
 static volatile bool m_i2s_start = true;
@@ -96,14 +98,22 @@ int main(void) {
 }
 
 static void set_led_data(void) {
-  for (int led = 0; led < DRV_WS2815_LEDS_COUNT; led++) {
-    if (led == m_nled) {
-      drv_ws2815_framebuffer_set_led(led, 0xAA, 0x00, 0x00);
-    } else {
-      drv_ws2815_framebuffer_set_led(led, 0x01, 0x01, 0x01);
-    }
-  }
-  m_nled = (m_nled + 1) % DRV_WS2815_LEDS_COUNT;
+  // for (int led = 0; led < DRV_WS2815_LEDS_COUNT; led++) {
+  //   if (led == m_nled) {
+  //     drv_ws2815_framebuffer_set_led(led, 0xAA, 0x00, 0x00);
+  //   } else {
+  //     drv_ws2815_framebuffer_set_led(led, 0x01, 0x01, 0x01);
+  //   }
+  // }
+  // m_nled = (m_nled + 1) % DRV_WS2815_LEDS_COUNT;
+
+  static effect_t effect = {
+    .get_led  = drv_ws2815_framebuffer_get_led_value,
+    .set_led  = drv_ws2815_framebuffer_set_led_value,
+    .leds     = DRV_WS2815_LEDS_COUNT,
+  };
+
+  effect_fade_out(&effect, 0x0000FF00, 7);
 }
 
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) {

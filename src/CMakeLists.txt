@@ -49,6 +49,7 @@ add_executable(${APP_NAME}
   ${SDK_ROOT}/external/segger_rtt/SEGGER_RTT_printf.c
   ${SRC_DIR}/drv_ws2815.c
   ${SRC_DIR}/main.c
+  ${SRC_DIR}/effects/effect_fade_out.c
  )
 
 target_include_directories(${APP_NAME} PRIVATE
@@ -77,6 +78,7 @@ target_include_directories(${APP_NAME} PRIVATE
   ${SDK_ROOT}/components/libraries/atomic
   ${SRC_DIR}
   ${SRC_DIR}/config
+  ${SRC_DIR}/effects
 )
 
 set_target_properties(${APP_NAME} PROPERTIES

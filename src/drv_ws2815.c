@@ -124,6 +124,36 @@ uint32_t drv_ws2815_framebuffer_set_led(uint32_t led, uint8_t r, uint8_t g, uint
   return DRV_WS2815_RC_SUCCESS;
 }
 
+uint32_t drv_ws2815_framebuffer_set_led_value(uint32_t led, uint32_t value) {
+  if (drv_ws2815_framebuffer_is_busy()) {
+    return DRV_WS2815_RC_BUSY;
+  }
+  drv_ws2815_from_rgb_value(value, _block_to_fill, led);
+  return DRV_WS2815_RC_SUCCESS;
+}
+
+uint32_t drv_ws2815_framebuffer_get_led(uint32_t led, uint8_t *r, uint8_t *g, uint8_t *b) {
+  if (r == NULL || g == NULL || b == NULL) {
+    return DRV_WS2815_RC_INVALID_PARAM;
+  }
+  if (_block_to_send == NULL) {
+    return DRV_WS2815_RC_BUSY;
+  }
+  drv_ws2815_to_rgb(_block_to_send, led, r, g, b);
+  return DRV_WS2815_RC_SUCCESS;
+}
+
+uint32_t drv_ws2815_framebuffer_get_led_value(uint32_t led, uint32_t *value) {
+  if (value == NULL) {
+    return DRV_WS2815_RC_INVALID_PARAM;
+  }
+  if (_block_to_send == NULL) {
+    return DRV_WS2815_RC_BUSY;
+  }
+  drv_ws2815_to_rgb_value(_block_to_send, led, value);
+  return DRV_WS2815_RC_SUCCESS;
+}
+
 uint32_t drv_ws2815_framebuffer_get(uint32_t **fb) {
   if (drv_ws2815_framebuffer_is_busy()) {
     return DRV_WS2815_RC_BUSY;

@@ -62,6 +62,7 @@ uint32_t drv_ws2815_framebuffer_commit(void);
 #define DRV_WS2815_ZERO         0x07
 #endif
 
+#define DRV_WS2815_SWAP_WORDS(x) ((((x) & 0xFFFF0000) >> 16) | (((x) & 0x0000FFFF) << 16))
 #define DRV_WS2815_I2S_BITS_OFFSET(bit) ((bit) * DRV_WS2815_I2S_BITS_PER_LED_BIT)
 
 #define DRV_WS2815_FROM_COLOR_BIT(x, bit) (                   \
@@ -90,8 +91,7 @@ uint32_t drv_ws2815_framebuffer_commit(void);
   )
 
 static inline uint32_t drv_ws2815_from_color(uint8_t color) {
-  uint32_t c = DRV_WS2815_FROM_COLOR(color);
-  return ((c & 0xFFFF0000) >> 16) | ((c & 0x0000FFFF) << 16);
+  return DRV_WS2815_SWAP_WORDS(DRV_WS2815_FROM_COLOR(color));
 }
 
 static inline void drv_ws2815_from_rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t *buffer, uint32_t led) {
@@ -101,17 +101,16 @@ static inline void drv_ws2815_from_rgb(uint8_t r, uint8_t g, uint8_t b, uint32_t
 }
 
 static inline void drv_ws2815_from_rgb_value(uint32_t value, uint32_t *buffer, uint32_t led) {
-  const uint8_t r = (value & 0x000000FF) >> 16;
+  const uint8_t r = (value & 0x00FF0000) >> 16;
   const uint8_t g = (value & 0x0000FF00) >>  8;
-  const uint8_t b = (value & 0x00FF0000) >>  0;
+  const uint8_t b = (value & 0x000000FF) >>  0;
   drv_ws2815_from_rgb(r, g, b, buffer, led);
 }
 
 static inline void drv_ws2815_to_rgb(uint32_t *buffer, uint32_t led, uint8_t *r, uint8_t *g, uint8_t *b) {
-  uint32_t v;
-  v = buffer[(led * 3) + 0]; v = ((v & 0xFFFF0000) >> 16) | ((v & 0x0000FFFF) << 16); *g = DRV_WS2815_TO_COLOR(v);
-  v = buffer[(led * 3) + 1]; v = ((v & 0xFFFF0000) >> 16) | ((v & 0x0000FFFF) << 16); *r = DRV_WS2815_TO_COLOR(v);
-  v = buffer[(led * 3) + 2]; v = ((v & 0xFFFF0000) >> 16) | ((v & 0x0000FFFF) << 16); *b = DRV_WS2815_TO_COLOR(v);
+  *g = DRV_WS2815_TO_COLOR(DRV_WS2815_SWAP_WORDS(buffer[(led * 3) + 0]));
+  *r = DRV_WS2815_TO_COLOR(DRV_WS2815_SWAP_WORDS(buffer[(led * 3) + 1]));
+  *b = DRV_WS2815_TO_COLOR(DRV_WS2815_SWAP_WORDS(buffer[(led * 3) + 2]));
 }
 
 static inline void drv_ws2815_to_rgb_value(uint32_t *buffer, uint32_t led, uint32_t *value) {

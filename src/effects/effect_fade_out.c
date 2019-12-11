@@ -2,13 +2,13 @@
 
 #include <stdlib.h>
 
-static inline uint32_t from_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
-  return (uint32_t)w << 24 | (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b << 0;
-}
-
 void effect_fade_out(effect_t const *const effect, uint32_t target, uint8_t rate) {
   static const uint8_t rateMapH[] = { 0, 1, 1, 1, 2, 3, 4, 6 };
   static const uint8_t rateMapL[] = { 0, 2, 3, 8, 8, 8, 8, 8 };
+
+  if (rate >= sizeof(rateMapH)) {
+    return;
+  }
 
   uint8_t rateH = rateMapH[rate];
   uint8_t rateL = rateMapL[rate];
@@ -40,7 +40,7 @@ void effect_fade_out(effect_t const *const effect, uint32_t target, uint8_t rate
     gdelta = abs(gdelta) < 3 ? gdelta : (gdelta >> rateH) + (gdelta >> rateL);
     bdelta = abs(bdelta) < 3 ? bdelta : (bdelta >> rateH) + (bdelta >> rateL);
 
-    uint32_t output = from_rgb(r1 + rdelta, g1 + gdelta, b1 + bdelta, w1 + wdelta);
+    uint32_t output = effect_value_from_rgbw(r1 + rdelta, g1 + gdelta, b1 + bdelta, w1 + wdelta);
     effect->set_led(i, output);
   }
 }

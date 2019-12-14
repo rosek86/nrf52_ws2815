@@ -13,5 +13,6 @@ typedef struct {
 } effect_blink_t;
 
 uint32_t effect_blink(effect_t const *const effect, uint32_t *const delay);
+uint32_t effect_blink_rainbow(effect_t const *const effect, uint32_t *const delay);
 
 #endif // EFFECT_BLINK_H__

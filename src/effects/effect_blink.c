@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "effect_blink.h"
 
@@ -12,7 +13,6 @@ uint32_t effect_blink(effect_t const *const effect, uint32_t *const delay) {
   effect_blink_t *e = (effect_blink_t *)effect;
 
   uint32_t color = ((effect->counter & 1) == 0) ? e->color1 : e->color2;
-  // if (IS_REVERSE) color = (color == color1) ? color2 : color1;
 
   for (int i = 0; i < effect->leds; i++) {
     effect->set_led(effect->from + i, color);
@@ -25,4 +25,10 @@ uint32_t effect_blink(effect_t const *const effect, uint32_t *const delay) {
   }
 
   return 0;
+}
+
+uint32_t effect_blink_rainbow(effect_t const *const effect, uint32_t *const delay) {
+  effect_blink_t *e = (effect_blink_t *)effect;
+  e->color1 = effect_color_wheel(effect->counter & 0xFF);
+  return effect_blink(effect, delay);
 }

@@ -15,6 +15,8 @@
 #include "effects/effect_fade_out.h"
 #include "effects/effect_breath.h"
 #include "effects/effect_blink.h"
+#include "effects/effect_flame.h"
+#include "effects/effect_rainbow_cycle.h"
 
 #define UPDATE_TIME_US (2*1000UL)
 
@@ -101,13 +103,7 @@ int main(void) {
 }
 
 // static effect_breath_t _effect_breath = {
-//   .effect = {
-//     .get_led  = drv_ws2815_framebuffer_get_led_value,
-//     .set_led  = drv_ws2815_framebuffer_set_led_value,
-//     .from     = 5,
-//     .leds     = DRV_WS2815_LEDS_COUNT,
-//     .counter  = 0,
-//   },
+//   .effect = _effect_info,
 //   .color = 0x00AA0000,
 //   .step = 15
 // };
@@ -115,59 +111,52 @@ int main(void) {
 // static effect_func_t _effect_func = effect_breath;
 
 // static effect_blink_t _effect_blink = {
-//   .effect = {
-//     .get_led  = drv_ws2815_framebuffer_get_led_value,
-//     .set_led  = drv_ws2815_framebuffer_set_led_value,
-//     .from     = 5,
-//     .leds     = 10, // DRV_WS2815_LEDS_COUNT,
-//     .counter  = 0,
-//   },
+//   .effect = _effect_info,
 //   .color1 = 0x00100000,
-//   .color2 = 0x00001000,
+//   .color2 = 0x00000000,
 //   .strobe = false,
-//   .speed  = 1000
+//   .speed  = 5000
 // };
 // static effect_t *_effect = (effect_t *)&_effect_blink;
-// static effect_func_t _effect_func = effect_blink;
+// static effect_func_t _effect_func = effect_blink_rainbow;
 
-static effect_fade_out_t _effect_fade_out = {
-  .effect = {
-    .get_led  = drv_ws2815_framebuffer_get_led_value,
-    .set_led  = drv_ws2815_framebuffer_set_led_value,
-    .from     = 5,
-    .leds     = 10, // DRV_WS2815_LEDS_COUNT,
-    .counter  = 0,
-  },
-  .color = 0x00FF0000,
-  .rate = 7,
+// static effect_fade_out_t _effect_fade_out = {
+//   .effect = _effect_info,
+//   .color = 0x00FF0000,
+//   .rate = 7,
+// };
+// static effect_t *_effect = (effect_t *)&_effect_fade_out;
+// static effect_func_t _effect_func = effect_fade_out;
+
+static effect_t _effect_general = {
+  .get_led  = drv_ws2815_framebuffer_get_led_value,
+  .set_led  = drv_ws2815_framebuffer_set_led_value,
+  .from     = 0,
+  .leds     = DRV_WS2815_LEDS_COUNT,
+  .counter  = 0,
 };
-static effect_t *_effect = (effect_t *)&_effect_fade_out;
-static effect_func_t _effect_func = effect_fade_out;
+
+typedef struct {
+  effect_t *effect;
+  effect_func_t func;
+} effects_t;
+
+static effects_t _effects[] = {
+  { &_effect_general, .func = effect_flame         },
+  { &_effect_general, .func = effect_rainbow_cycle },
+};
+
+static effect_t *_effect;
+static effect_func_t _effect_func;
 
 static void set_led_data(void) {
-  uint32_t delay_ms;
   static uint32_t time = 0;
   static uint32_t next_time = 0;
+  uint32_t delay_ms;
 
-  // static uint32_t change_time;
-
-  // static int color_index = 0;
-  // static uint32_t colors[] = { 0xFF0000, 0x00FF00, 0x0000FF, 0xFFFFFF };
-  // static int cycles_at_color = 0;
-  // if (++cycles_at_color > 128) {
-  //   cycles_at_color = 0;
-  //   color_index = (color_index + 1) & 0x03;
-  // }
-  // effect_fade_out(&effect, colors[color_index], FADE_XXSLOW);
-
-  // for (int led = 0; led < DRV_WS2815_LEDS_COUNT; led++) {
-  //   if (led == m_nled) {
-  //     drv_ws2815_framebuffer_set_led(led, 0xAA, 0x00, 0x00);
-  //   } else {
-  //     drv_ws2815_framebuffer_set_led(led, 0x01, 0x01, 0x01);
-  //   }
-  // }
-  // m_nled = (m_nled + 1) % DRV_WS2815_LEDS_COUNT;
+  int selected_effect = 1;
+  _effect = _effects[selected_effect].effect;
+  _effect_func = _effects[selected_effect].func;
 
   if (time >= next_time) {
     _effect_func(_effect, &delay_ms);
@@ -176,12 +165,8 @@ static void set_led_data(void) {
     next_time = time + delay_ms;
     _effect->counter++;
   }
-  time += UPDATE_TIME_US / 1000;
 
-  // if (time > (change_time + 60 * 1000)) {
-  //   change_time = time;
-  //   target_color = ( (rand() & 0xFF) << 16 )| ((rand() & 0xFF) <<8) | ((rand() & 0xFF));
-  // }
+  time += UPDATE_TIME_US / 1000;
 }
 
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) {

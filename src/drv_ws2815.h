@@ -6,7 +6,7 @@
 
 // leds configuration
 #define DRV_WS2815_INVERTED     1   // transistor inverts bits
-#define DRV_WS2815_LEDS_COUNT   300
+#define DRV_WS2815_LEDS_COUNT   300-2
 #define DRV_WS2815_RESET_BYTES  100
 // example for DRV_WS2815_RESET_BYTES = 100
 // we have 8us per ws2815 byte 

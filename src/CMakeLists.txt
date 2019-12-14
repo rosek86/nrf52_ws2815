@@ -52,6 +52,8 @@ add_executable(${APP_NAME}
   ${SRC_DIR}/effects/effect_fade_out.c
   ${SRC_DIR}/effects/effect_breath.c
   ${SRC_DIR}/effects/effect_blink.c
+  ${SRC_DIR}/effects/effect_flame.c
+  ${SRC_DIR}/effects/effect_rainbow_cycle.c
  )
 
 target_include_directories(${APP_NAME} PRIVATE

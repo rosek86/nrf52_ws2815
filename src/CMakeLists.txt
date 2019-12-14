@@ -50,6 +50,8 @@ add_executable(${APP_NAME}
   ${SRC_DIR}/drv_ws2815.c
   ${SRC_DIR}/main.c
   ${SRC_DIR}/effects/effect_fade_out.c
+  ${SRC_DIR}/effects/effect_breath.c
+  ${SRC_DIR}/effects/effect_blink.c
  )
 
 target_include_directories(${APP_NAME} PRIVATE

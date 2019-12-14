@@ -45,6 +45,15 @@ uint32_t drv_ws2815_init(drv_ws2815_conf_t *const conf) {
     return err_code;
   }
 
+  nrf_gpio_cfg(
+    conf->sdout_pin,
+    NRF_GPIO_PIN_DIR_OUTPUT,
+    NRF_GPIO_PIN_INPUT_DISCONNECT,
+    NRF_GPIO_PIN_NOPULL,
+    NRF_GPIO_PIN_H0H1,
+    NRF_GPIO_PIN_NOSENSE
+  );
+
   return 0;
 }
 

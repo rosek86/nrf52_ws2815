@@ -2,6 +2,7 @@
 #define FADE_OUT_H__
 
 #include "effect.h"
+#include <stdint.h>
 
 #define FADE_XFAST   (uint8_t)1
 #define FADE_FAST    (uint8_t)2
@@ -11,6 +12,12 @@
 #define FADE_XXSLOW  (uint8_t)6
 #define FADE_GLACIAL (uint8_t)7
 
-void effect_fade_out(effect_t const *const effect, uint32_t target, uint8_t rate);
+typedef struct {
+  effect_t effect;
+  uint32_t color;
+  uint8_t rate;
+} effect_fade_out_t;
+
+uint32_t effect_fade_out(effect_t const *const effect, uint32_t *const delay);
 
 #endif // FADE_OUT_H__

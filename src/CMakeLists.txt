@@ -58,6 +58,7 @@ add_executable(${APP_NAME}
   ${SDK_ROOT}/external/segger_rtt/SEGGER_RTT_printf.c
   ${SRC_DIR}/drv_ws2815.c
   ${SRC_DIR}/main.c
+  ${SRC_DIR}/effects/gamma.c
   ${SRC_DIR}/effects/effect_fade_out.c
   ${SRC_DIR}/effects/effect_breath.c
   ${SRC_DIR}/effects/effect_blink.c

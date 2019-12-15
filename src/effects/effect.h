@@ -2,6 +2,7 @@
 #define EFFECT_H__
 
 #include <stdint.h>
+#include "gamma.h"
 
 typedef struct {
   uint32_t (*get_led)(uint32_t led, uint32_t *value);
@@ -15,7 +16,10 @@ typedef struct {
 typedef uint32_t (*effect_func_t)(effect_t *const, uint32_t *const);
 
 static inline uint32_t effect_value_from_rgbw(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
-  return (uint32_t)w << 24 | (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b << 0;
+  return (uint32_t)gamma_correction(w) << 24 |
+         (uint32_t)gamma_correction(r) << 16 |
+         (uint32_t)gamma_correction(g) <<  8 |
+         (uint32_t)gamma_correction(b) <<  0;
 }
 
 /*

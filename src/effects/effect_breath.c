@@ -1,9 +1,10 @@
 #include "effect_breath.h"
+#include "gamma.h"
 
 #include <stdlib.h>
 #include <math.h>
 
-uint32_t effect_breath(effect_t const *const effect, uint32_t *const delay) {
+uint32_t effect_breath(effect_t *const effect, uint32_t *const delay) {
   effect_breath_t *e = (effect_breath_t *)effect;
 
   int lum = e->step;
@@ -27,8 +28,8 @@ uint32_t effect_breath(effect_t const *const effect, uint32_t *const delay) {
   uint8_t b = (((e->color       & 0xFF) * lum) + 128) / 256;
 
   for (int i = 0; i < effect->leds; i++) {
-    uint32_t output = effect_value_from_rgbw(r, g, b, w);
-    effect->set_led(effect->from + i, output);
+    uint32_t color = effect_value_from_rgbw(r, g, b, w);
+    effect->set_led(effect->from + i, color);
   }
 
   e->step += 2;

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "effect_flame.h"
+#include "gamma.h"
 
 static int random_between(int min, int max);
 
@@ -14,14 +15,12 @@ uint32_t effect_flame(effect_t *const effect, uint32_t *const delay) {
   for (int i = 0; i < effect->leds; i++) {
     int flicker = random_between(0, 40);
 
-    int r1 = r - flicker;
-    if (r1 < 0) r1 = 0;
-    int g1 = g - flicker;
-    if (g1 < 0) g1 = 0;
-    int b1 = b - flicker;
-    if (b1 < 0) b1 = 0;
+    int r1 = (r - flicker) < 0 ? 0 : r - flicker;
+    int g1 = (g - flicker) < 0 ? 0 : g - flicker;
+    int b1 = (b - flicker) < 0 ? 0 : b - flicker;
 
-    effect->set_led(effect->from + i, r1 << 16 | g1 << 8 | b1 << 0);
+    uint32_t color = effect_value_from_rgbw(r1, g1, b1, 0);
+    effect->set_led(effect->from + i, color);
   }
 
   *delay = random_between(50, 150);

@@ -28,14 +28,6 @@ static volatile int m_nled = 0;
 static volatile bool m_i2s_start = true;
 static volatile bool m_i2s_running = false;
 
-// static effect_breath_t _effect_breath = {
-//   .effect = _effect_info,
-//   .color = 0x00AA0000,
-//   .step = 15
-// };
-// static effect_t *_effect = (effect_t *)&_effect_breath;
-// static effect_func_t _effect_func = effect_breath;
-
 // static effect_blink_t _effect_blink = {
 //   .effect = _effect_info,
 //   .color1 = 0x00100000,
@@ -54,6 +46,18 @@ static volatile bool m_i2s_running = false;
 // static effect_t *_effect = (effect_t *)&_effect_fade_out;
 // static effect_func_t _effect_func = effect_fade_out;
 
+static effect_breath_t _effect_breath = {
+  .effect = {
+    .get_led  = drv_ws2815_framebuffer_get_led_value,
+    .set_led  = drv_ws2815_framebuffer_set_led_value,
+    .from     = 0,
+    .leds     = DRV_WS2815_LEDS_COUNT,
+    .counter  = 0,
+  },
+  .color = 0x00D4AF37,
+  .step = 15
+};
+
 static effect_t _effect_general = {
   .get_led  = drv_ws2815_framebuffer_get_led_value,
   .set_led  = drv_ws2815_framebuffer_set_led_value,
@@ -69,8 +73,9 @@ typedef struct {
 
 static uint32_t _effects_sel = 0;
 static effects_t _effects[] = {
-  { &_effect_general, .func = effect_flame         },
-  { &_effect_general, .func = effect_rainbow_cycle },
+  { &_effect_general,             .func = effect_flame         },
+  { &_effect_general,             .func = effect_rainbow_cycle },
+  { (effect_t *)&_effect_breath,  .func = effect_breath        },
 };
 
 static effect_t *_effect;
@@ -91,7 +96,9 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action) {
   switch (pin_no) {
     case BSP_BUTTON_0:
       NRF_LOG_INFO("Send button state change.");
-      _effects_sel = (_effects_sel + 1) & 1;
+      if (++_effects_sel >= ARRAY_SIZE(_effects)) {
+        _effects_sel = 0;
+      }
       break;
     default:
       APP_ERROR_HANDLER(pin_no);

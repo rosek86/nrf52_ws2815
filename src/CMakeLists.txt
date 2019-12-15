@@ -33,10 +33,19 @@ add_executable(${APP_NAME}
   ${SDK_ROOT}/components/libraries/ringbuf/nrf_ringbuf.c
   ${SDK_ROOT}/components/libraries/strerror/nrf_strerror.c
   ${SDK_ROOT}/components/boards/boards.c
+  ${SDK_ROOT}/components/libraries/button/app_button.c
+  ${SDK_ROOT}/components/libraries/timer/app_timer2.c
+  ${SDK_ROOT}/components/libraries/atomic_fifo/nrf_atfifo.c
+  ${SDK_ROOT}/components/libraries/sortlist/nrf_sortlist.c
+  ${SDK_ROOT}/components/libraries/timer/drv_rtc.c
+  ${SDK_ROOT}/integration/nrfx/legacy/nrf_drv_clock.c
   ${SDK_ROOT}/integration/nrfx/legacy/nrf_drv_uart.c
   ${SDK_ROOT}/modules/nrfx/soc/nrfx_atomic.c
   ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_i2s.c
+  ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_gpiote.c
   ${SDK_ROOT}/modules/nrfx/drivers/src/prs/nrfx_prs.c
+  ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_clock.c
+  ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_rtc.c
   ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_uart.c
   ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_uarte.c
   ${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_systick.c
@@ -80,6 +89,10 @@ target_include_directories(${APP_NAME} PRIVATE
   ${SDK_ROOT}/components/libraries/log/src
   ${SDK_ROOT}/external/fprintf
   ${SDK_ROOT}/components/libraries/atomic
+  ${SDK_ROOT}/components/libraries/button
+  ${SDK_ROOT}/components/libraries/timer
+  ${SDK_ROOT}/components/libraries/atomic_fifo
+  ${SDK_ROOT}/components/libraries/sortlist
   ${SRC_DIR}
   ${SRC_DIR}/config
   ${SRC_DIR}/effects
@@ -97,6 +110,8 @@ target_compile_options(${APP_NAME} PRIVATE
 )
 
 target_compile_definitions(${APP_NAME} PRIVATE
+  APP_TIMER_V2
+  APP_TIMER_V2_RTC1_ENABLED
   CUSTOM_BOARD_INC=bsp_ws2815_driver
   BSP_DEFINES_ONLY
   CONFIG_GPIO_AS_PINRESET

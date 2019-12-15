@@ -4,10 +4,14 @@
 #include "app_error.h"
 #include "boards.h"
 
+#include "app_timer.h"
+#include "app_button.h"
+
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "nrf_drv_clock.h"
 #include "nrf_drv_systick.h"
 
 #include "drv_ws2815.h"
@@ -24,21 +28,124 @@ static volatile int m_nled = 0;
 static volatile bool m_i2s_start = true;
 static volatile bool m_i2s_running = false;
 
+// static effect_breath_t _effect_breath = {
+//   .effect = _effect_info,
+//   .color = 0x00AA0000,
+//   .step = 15
+// };
+// static effect_t *_effect = (effect_t *)&_effect_breath;
+// static effect_func_t _effect_func = effect_breath;
+
+// static effect_blink_t _effect_blink = {
+//   .effect = _effect_info,
+//   .color1 = 0x00100000,
+//   .color2 = 0x00000000,
+//   .strobe = false,
+//   .speed  = 5000
+// };
+// static effect_t *_effect = (effect_t *)&_effect_blink;
+// static effect_func_t _effect_func = effect_blink_rainbow;
+
+// static effect_fade_out_t _effect_fade_out = {
+//   .effect = _effect_info,
+//   .color = 0x00FF0000,
+//   .rate = 7,
+// };
+// static effect_t *_effect = (effect_t *)&_effect_fade_out;
+// static effect_func_t _effect_func = effect_fade_out;
+
+static effect_t _effect_general = {
+  .get_led  = drv_ws2815_framebuffer_get_led_value,
+  .set_led  = drv_ws2815_framebuffer_set_led_value,
+  .from     = 0,
+  .leds     = DRV_WS2815_LEDS_COUNT,
+  .counter  = 0,
+};
+
+typedef struct {
+  effect_t *effect;
+  effect_func_t func;
+} effects_t;
+
+static uint32_t _effects_sel = 0;
+static effects_t _effects[] = {
+  { &_effect_general, .func = effect_flame         },
+  { &_effect_general, .func = effect_rainbow_cycle },
+};
+
+static effect_t *_effect;
+static effect_func_t _effect_func;
+
 static void set_led_data(void);
+
+/**@brief Function for handling events from the button handler module.
+ *
+ * @param[in] pin_no        The pin that the event applies to.
+ * @param[in] button_action The button action (press/release).
+ */
+static void button_event_handler(uint8_t pin_no, uint8_t button_action) {
+  if (button_action == APP_BUTTON_RELEASE) {
+    return;
+  }
+
+  switch (pin_no) {
+    case BSP_BUTTON_0:
+      NRF_LOG_INFO("Send button state change.");
+      _effects_sel = (_effects_sel + 1) & 1;
+      break;
+    default:
+      APP_ERROR_HANDLER(pin_no);
+      break;
+  }
+}
+
+/**@brief Function for initializing the button handler module.
+ */
+static void buttons_init(void) {
+  ret_code_t err_code;
+
+  // The array must be static because a pointer to it will be saved in the button handler module.
+  static app_button_cfg_t buttons[] = {
+    { BSP_BUTTON_0, false, BUTTON_PULL, button_event_handler }
+  };
+
+  err_code = app_button_init(buttons, ARRAY_SIZE(buttons), APP_TIMER_TICKS(50));
+  APP_ERROR_CHECK(err_code);
+
+  err_code = app_button_enable();
+  APP_ERROR_CHECK(err_code);
+}
+
+/** @brief Function starting the internal LFCLK XTAL oscillator.
+ */
+static void lfclk_config(void) {
+  ret_code_t err_code = nrf_drv_clock_init();
+  APP_ERROR_CHECK(err_code);
+
+  nrf_drv_clock_lfclk_request(NULL);
+}
 
 int main(void) {
   uint32_t err_code = NRF_SUCCESS;
   bool update_framebuffer = false;
 
-  bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
+  lfclk_config();
 
   /* Init systick driver */
   nrf_drv_systick_init();
+
+  err_code = app_timer_init();
+  APP_ERROR_CHECK(err_code);
 
   err_code = NRF_LOG_INIT(NULL);
   APP_ERROR_CHECK(err_code);
 
   NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+  NRF_LOG_INFO("WS2815 logging initialized.");
+
+  bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
+  buttons_init();
 
   nrf_gpio_cfg_output(BSP_DBG1);
   nrf_gpio_cfg_output(BSP_DBG2);
@@ -102,61 +209,13 @@ int main(void) {
   }
 }
 
-// static effect_breath_t _effect_breath = {
-//   .effect = _effect_info,
-//   .color = 0x00AA0000,
-//   .step = 15
-// };
-// static effect_t *_effect = (effect_t *)&_effect_breath;
-// static effect_func_t _effect_func = effect_breath;
-
-// static effect_blink_t _effect_blink = {
-//   .effect = _effect_info,
-//   .color1 = 0x00100000,
-//   .color2 = 0x00000000,
-//   .strobe = false,
-//   .speed  = 5000
-// };
-// static effect_t *_effect = (effect_t *)&_effect_blink;
-// static effect_func_t _effect_func = effect_blink_rainbow;
-
-// static effect_fade_out_t _effect_fade_out = {
-//   .effect = _effect_info,
-//   .color = 0x00FF0000,
-//   .rate = 7,
-// };
-// static effect_t *_effect = (effect_t *)&_effect_fade_out;
-// static effect_func_t _effect_func = effect_fade_out;
-
-static effect_t _effect_general = {
-  .get_led  = drv_ws2815_framebuffer_get_led_value,
-  .set_led  = drv_ws2815_framebuffer_set_led_value,
-  .from     = 0,
-  .leds     = DRV_WS2815_LEDS_COUNT,
-  .counter  = 0,
-};
-
-typedef struct {
-  effect_t *effect;
-  effect_func_t func;
-} effects_t;
-
-static effects_t _effects[] = {
-  { &_effect_general, .func = effect_flame         },
-  { &_effect_general, .func = effect_rainbow_cycle },
-};
-
-static effect_t *_effect;
-static effect_func_t _effect_func;
-
 static void set_led_data(void) {
   static uint32_t time = 0;
   static uint32_t next_time = 0;
   uint32_t delay_ms;
 
-  int selected_effect = 1;
-  _effect = _effects[selected_effect].effect;
-  _effect_func = _effects[selected_effect].func;
+  _effect = _effects[_effects_sel].effect;
+  _effect_func = _effects[_effects_sel].func;
 
   if (time >= next_time) {
     _effect_func(_effect, &delay_ms);

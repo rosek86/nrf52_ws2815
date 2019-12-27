@@ -9,8 +9,11 @@ static uint8_t *wheel(uint8_t WheelPos);
 uint32_t effect_rainbow_cycle(effect_t *const effect, uint32_t *const delay) {
   uint8_t *c;
 
+  int cycles = 4;
+  int leds_per_cycle = effect->leds / cycles;
+
   for (int i = 0; i < effect->leds; i++) {
-    c = wheel(((i * 256 / effect->leds) + effect->step) & 255);
+    c = wheel(((i * 256 / leds_per_cycle) + effect->step) & 255);
 
     uint32_t color = effect_value_from_rgbw(*c, *(c + 1), *(c + 2), 0);
     effect->set_led(effect->from + i, color);

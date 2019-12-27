@@ -9,11 +9,11 @@ static int random_between(int min, int max);
 
 uint32_t effect_flame(effect_t *const effect, uint32_t *const delay) {
   int r = 255;
-  int g = 96;
-  int b = 12;
+  int g = 121;
+  int b = 0;
 
   for (int i = 0; i < effect->leds; i++) {
-    int flicker = random_between(0, 40);
+    int flicker = random_between(0, 80);
 
     int r1 = (r - flicker) < 0 ? 0 : r - flicker;
     int g1 = (g - flicker) < 0 ? 0 : g - flicker;

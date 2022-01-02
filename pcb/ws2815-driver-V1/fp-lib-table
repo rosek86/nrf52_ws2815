@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name ws2815-driver)(type KiCad)(uri ${KIPRJMOD}/ws2815-driver.pretty)(options "")(descr ""))
+)
